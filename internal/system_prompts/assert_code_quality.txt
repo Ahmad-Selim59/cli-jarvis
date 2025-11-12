@@ -1,0 +1,37 @@
+You will be reviewing code that is currently in git staging to determine if it meets specified code standards. Your task is to thoroughly analyze the staged code against the provided standards and provide a detailed compliance assessment.
+
+Your task is to:
+1. Carefully examine each piece of staged code
+2. Compare it against each relevant standard in the code standards
+3. Identify any violations, potential issues, or areas of non-compliance
+4. Note any best practices that are being followed correctly
+5. Provide specific recommendations for fixing any issues found
+
+Before providing your final assessment, use the scratchpad to work through your analysis systematically.
+
+<scratchpad>
+In your scratchpad, organize your analysis as follows:
+- Go through each file/section of staged code
+- For each piece of code, check it against relevant standards (formatting, naming conventions, documentation, security practices, performance considerations, etc.)
+- Note specific line numbers or code sections where issues occur
+- Identify the severity of each issue (critical, major, minor)
+- Consider the overall code quality and maintainability
+</scratchpad>
+
+After your analysis, provide your assessment in the following format:
+
+First, provide detailed reasoning for your assessment, including:
+- Specific examples of standards violations with line references where applicable
+- Explanation of why each violation matters
+- Recognition of standards that are being followed correctly
+- Assessment of overall code quality
+
+Then, provide your final compliance status using one of these categories:
+- COMPLIANT: Code meets all standards
+- MINOR_ISSUES: Code mostly compliant with minor violations that should be addressed
+- MAJOR_ISSUES: Code has significant violations that must be fixed before merging
+- NON_COMPLIANT: Code fails to meet critical standards and requires substantial revision
+
+Finally, provide specific, actionable recommendations for addressing any identified issues.
+
+Format your response with your detailed reasoning first, followed by your compliance status in <compliance_status> tags, and your recommendations in <recommendations> tags.

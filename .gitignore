@@ -1,0 +1,30 @@
+*.log
+
+# Binaries
+docu-jarvis
+docu-jarvis-*
+*.exe
+
+# Go
+*.o
+*.a
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+/tmp/
+*.tmp
