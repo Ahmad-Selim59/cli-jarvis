@@ -11,22 +11,22 @@ import (
 )
 
 type ConversationMessage struct {
-	Role    string 
+	Role    string
 	Content string
 }
 
 type CommitExplainer struct {
-	agent              *Agent
-	commitHash         string
-	commitDiff         string
+	agent               *Agent
+	commitHash          string
+	commitDiff          string
 	conversationHistory []ConversationMessage
 }
 
 func NewCommitExplainer(agent *Agent, commitHash, commitDiff string) *CommitExplainer {
 	return &CommitExplainer{
-		agent:              agent,
-		commitHash:         commitHash,
-		commitDiff:         commitDiff,
+		agent:               agent,
+		commitHash:          commitHash,
+		commitDiff:          commitDiff,
 		conversationHistory: []ConversationMessage{},
 	}
 }
@@ -41,12 +41,12 @@ func (ce *CommitExplainer) StartConversation(ctx context.Context, initialQuestio
 			Content: initialQuestion,
 		})
 
-		response, err := ce.getResponse(ctx)
+		fmt.Print("Claude: ")
+		_, err := ce.getResponse(ctx)
 		if err != nil {
 			return err
 		}
 
-		fmt.Println(response)
 		fmt.Println()
 	} else {
 		initialPrompt := "Please provide a comprehensive explanation of this commit. What changes were made and why?"
@@ -55,12 +55,12 @@ func (ce *CommitExplainer) StartConversation(ctx context.Context, initialQuestio
 			Content: initialPrompt,
 		})
 
-		response, err := ce.getResponse(ctx)
+		fmt.Print("Claude: ")
+		_, err := ce.getResponse(ctx)
 		if err != nil {
 			return err
 		}
 
-		fmt.Println(response)
 		fmt.Println()
 	}
 
@@ -98,12 +98,13 @@ func (ce *CommitExplainer) interactiveLoop(ctx context.Context) error {
 			Content: userInput,
 		})
 
-		response, err := ce.getResponse(ctx)
+		fmt.Print("\nClaude: ")
+		_, err = ce.getResponse(ctx)
 		if err != nil {
 			return err
 		}
 
-		fmt.Printf("\nClaude: %s\n\n", response)
+		fmt.Println()
 	}
 }
 
@@ -118,37 +119,59 @@ func (ce *CommitExplainer) getResponse(ctx context.Context) (string, error) {
 			AllowedTools:   []string{"Read", "Grep", "LS"},
 			PermissionMode: stringPtr("acceptEdits"),
 			Cwd:            stringPtr(ce.agent.folder),
-			OutputFormat:   outputFormatPtr(claudecode.OutputFormatJSON),
+			OutputFormat:   outputFormatPtr(claudecode.OutputFormatStreamJSON),
 			Verbose:        boolPtr(false),
 			MaxTurns:       intPtr(15),
 		},
 	}
 
-	messages, err := claudecode.QueryWithRequest(ctx, request)
-	if err != nil {
-		ce.agent.logger.Printf("Error getting response: %v", err)
-		return "", fmt.Errorf("failed to get response: %w", err)
-	}
+	messageChan, errorChan := claudecode.QueryStreamWithRequest(ctx, request)
 
 	var responseText strings.Builder
-	for _, message := range messages {
-		for _, block := range message.Content() {
-			if textBlock, ok := block.(*claudecode.TextBlock); ok {
-				responseText.WriteString(textBlock.Text)
+	var lastPrintedLength int
+
+	for {
+		select {
+		case message, ok := <-messageChan:
+			if !ok {
+				fmt.Println()
+				response := strings.TrimSpace(responseText.String())
+
+				ce.conversationHistory = append(ce.conversationHistory, ConversationMessage{
+					Role:    "assistant",
+					Content: response,
+				})
+
+				ce.agent.logger.Printf("Response received, length: %d characters", len(response))
+				return response, nil
 			}
+
+			if message.Type() == claudecode.MessageTypeAssistant {
+				for _, block := range message.Content() {
+					if textBlock, ok := block.(*claudecode.TextBlock); ok {
+						responseText.WriteString(textBlock.Text)
+
+						currentText := responseText.String()
+						if len(currentText) > lastPrintedLength {
+							newText := currentText[lastPrintedLength:]
+							fmt.Print(newText)
+							lastPrintedLength = len(currentText)
+						}
+					}
+				}
+			}
+
+		case err := <-errorChan:
+			if err != nil {
+				ce.agent.logger.Printf("Error getting response: %v", err)
+				return "", fmt.Errorf("failed to get response: %w", err)
+			}
+
+		case <-ctx.Done():
+			ce.agent.logger.Printf("Context cancelled")
+			return "", ctx.Err()
 		}
 	}
-
-	response := strings.TrimSpace(responseText.String())
-
-	ce.conversationHistory = append(ce.conversationHistory, ConversationMessage{
-		Role:    "assistant",
-		Content: response,
-	})
-
-	ce.agent.logger.Printf("Response received, length: %d characters", len(response))
-
-	return response, nil
 }
 
 func (ce *CommitExplainer) buildPromptWithHistory() string {
@@ -177,4 +200,3 @@ func (ce *CommitExplainer) buildPromptWithHistory() string {
 
 	return prompt.String()
 }
-

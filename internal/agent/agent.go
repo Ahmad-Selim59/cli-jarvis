@@ -73,36 +73,23 @@ Here is the documentation file that you need to analyze:
 			AllowedTools:   []string{"Read", "Write"},
 			PermissionMode: stringPtr("acceptEdits"),
 			Cwd:            stringPtr(a.folder),
-			OutputFormat:   outputFormatPtr(claudecode.OutputFormatStreamJSON),
+			OutputFormat:   outputFormatPtr(claudecode.OutputFormatJSON),
 			Verbose:        boolPtr(false),
 		},
 	}
 
-	messageChan, errorChan := claudecode.QueryStreamWithRequest(ctx, request)
-
-	messageCount := 0
-	for {
-		select {
-		case message, ok := <-messageChan:
-			if !ok {
-				a.logger.Printf("Completed processing: %s (received %d messages)", fileName, messageCount)
-				return nil
-			}
-
-			messageCount++
-			a.logMessage(fileName, message)
-
-		case err := <-errorChan:
-			if err != nil {
-				a.logger.Printf("Error processing %s: %v", fileName, err)
-				return fmt.Errorf("streaming error: %w", err)
-			}
-
-		case <-ctx.Done():
-			a.logger.Printf("Context cancelled for %s", fileName)
-			return ctx.Err()
-		}
+	messages, err := claudecode.QueryWithRequest(ctx, request)
+	if err != nil {
+		a.logger.Printf("Error processing %s: %v", fileName, err)
+		return fmt.Errorf("query error: %w", err)
 	}
+
+	a.logger.Printf("Completed processing: %s (received %d messages)", fileName, len(messages))
+	for _, message := range messages {
+		a.logMessage(fileName, message)
+	}
+
+	return nil
 }
 
 func (a *Agent) ProcessDocuments(ctx context.Context) (int, int, error) {
